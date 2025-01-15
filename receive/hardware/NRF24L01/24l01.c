@@ -110,7 +110,7 @@ u8 NRF24L01_Write_Buf(u8 reg, u8 *pBuf, u8 len)
 u8 NRF24L01_TxPacket(u8 *txbuf)
 {
 	u8 sta;
-// 	SPI1_SetSpeed(SPI_BAUDRATEPRESCALER_16); //spi速度为4.5Mhz（24L01的最大SPI时钟为10Mhz）   
+ 	SPI1_SetSpeed(SPI_BAUDRATEPRESCALER_16); //spi速度为4.5Mhz（24L01的最大SPI时钟为10Mhz）   
 	NRF24L01_CE=0;
   NRF24L01_Write_Buf(WR_TX_PLOAD,txbuf,TX_PLOAD_WIDTH);//写数据到TX BUF  32个字节
  	NRF24L01_CE=1;                         //启动发送	   
@@ -135,7 +135,7 @@ u8 NRF24L01_TxPacket(u8 *txbuf)
 u8 NRF24L01_RxPacket(u8 *rxbuf)
 {
 	u8 sta;		    							   
-//  SPI1_SetSpeed(SPI_BAUDRATEPRESCALER_16); //spi速度为4.5Mhz（24L01的最大SPI时钟为10Mhz）   
+  //SPI1_SetSpeed(SPI_BAUDRATEPRESCALER_16); //spi速度为4.5Mhz（24L01的最大SPI时钟为10Mhz）   
 	sta=NRF24L01_Read_Reg(STATUS);          //读取状态寄存器的值    	 
 	NRF24L01_Write_Reg(NRF_WRITE_REG+STATUS,sta); //清除TX_DS或MAX_RT中断标志
 	if(sta&RX_OK)//接收到数据中断 RX_OK为0x40
@@ -156,8 +156,8 @@ void NRF24L01_RX_Mode(void)
 	  
   	NRF24L01_Write_Reg(NRF_WRITE_REG+EN_AA,0x01);       //使能通道0的自动应答    
   	NRF24L01_Write_Reg(NRF_WRITE_REG+EN_RXADDR,0x01);   //使能通道0的接收地址  	 
-  	NRF24L01_Write_Reg(NRF_WRITE_REG+RF_CH,99);	        //设置RF通信频率	即通信频率2400+99=2499MHz	  
-  	NRF24L01_Write_Reg(NRF_WRITE_REG+RX_PW_P0,RX_PLOAD_WIDTH);//选择通道0的有效数据宽度 	 20个字节   
+  	NRF24L01_Write_Reg(NRF_WRITE_REG+RF_CH,99);	        //设置RF通信频率	即通信频率2400+40=2440MHz	  
+  	NRF24L01_Write_Reg(NRF_WRITE_REG+RX_PW_P0,RX_PLOAD_WIDTH);//选择通道0的有效数据宽度 	 32个字节   
   	NRF24L01_Write_Reg(NRF_WRITE_REG+RF_SETUP,0x0f);    //设置TX发射参数,0db增益,2Mbps,低噪声增益开启   
   	NRF24L01_Write_Reg(NRF_WRITE_REG+CONFIG, 0x0f);     //配置基本工作模式的参数;PWR_UP,EN_CRC,16BIT_CRC,接收模式 
   	NRF24L01_CE=1; //CE为高,进入接收模式 
@@ -176,7 +176,7 @@ void NRF24L01_TX_Mode(void)
 	NRF24L01_Write_Reg(NRF_WRITE_REG+EN_AA,0x01);     //使能通道0的自动应答    
 	NRF24L01_Write_Reg(NRF_WRITE_REG+EN_RXADDR,0x01); //使能通道0的接收地址  
 	NRF24L01_Write_Reg(NRF_WRITE_REG+SETUP_RETR,0x1a);//设置自动重发间隔时间:500us + 86us;最大自动重发次数:10次
-	NRF24L01_Write_Reg(NRF_WRITE_REG+RF_CH,99);       //设置RF通道为99
+	NRF24L01_Write_Reg(NRF_WRITE_REG+RF_CH,99);       //设置RF通道为40
 	NRF24L01_Write_Reg(NRF_WRITE_REG+RF_SETUP,0x0f);  //设置TX发射参数,0db增益,2Mbps,低噪声增益开启   
 	NRF24L01_Write_Reg(NRF_WRITE_REG+CONFIG,0x0e);    //配置基本工作模式的参数;PWR_UP,EN_CRC,16BIT_CRC,发送模式,开启所有中断
 	NRF24L01_CE=1;//CE为高,10us后启动发送
