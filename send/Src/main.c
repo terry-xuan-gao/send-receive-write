@@ -71,6 +71,9 @@ uint8_t  hight_part[10];
 uint8_t  lower_part[10];	
 uint16_t sumref7=0,sumref15=0;
 uint16_t count1=0,count2=0;
+	
+unsigned char Send[20] ={19, 'f', 'a','a','a','a','b','b','b','b','c','c','c','c','d','d','d','d','e',' '}; 
+unsigned char SendFail[9] ={0x08,'s','e','n','d','f','a', '\r', ' '}; 
 
 uint32_t count_send_fail=0;
 u8 statusCheck=0;
@@ -92,14 +95,6 @@ void SystemClock_Config(void);
   * @brief  The application entry point.
   * @retval int
   */
-//void delay(unsigned int time) {
-//    unsigned int i, j;
-//    for (i = 0; i < time; i++) {
-//        for (j = 0; j < 1275; j++) {
-//            // 延时循环
-//        }
-//    }
-//}
 
 int main(void)
 {
@@ -130,15 +125,15 @@ int main(void)
 	MX_USART1_UART_Init();
 	MX_ADC1_Init();
 	MX_TIM3_Init();
-  /* USER CODE BEGIN 2 */
-//初始化nrf
+	/* USER CODE BEGIN 2 */
+	//初始化nrf
     NRF24L01_Init();  //初始化NRF24L01
     if(NRF24L01_Check())//函数返回值为1说明检测24L01错误	！！！
     {
         printf("\n\r nrf测试失败 nrf未连接\n\r");
     }
 		
-//初始化adc相关
+	//初始化adc相关
     HAL_ADCEx_Calibration_Start(&hadc1);//校准
     HAL_Delay(10);
     if(HAL_TIM_Base_Start_IT(&htim3)!=HAL_OK) 
@@ -147,34 +142,11 @@ int main(void)
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&ADC_Value, 120);
 
 	
-//	if(NRF24L01_Check() == 1)
-//	{
-//			NRF24L01_Init();
-//			NRF24L01_TX_Mode();
-//			
-//			if(NRF24L01_Check() == 1)
-//			{
-//				HAL_NVIC_SystemReset(); 
-//			}
-//		}
-//	
-//	
-	
     if(NRF24L01_Check()==0)
     {
         printf("\n\r nrf测试成功 nrf连接\n\r");
 			  SPI1_SetSpeed(SPI_BAUDRATEPRESCALER_16);
-        //Rx接收模式
-        if(mode == 1)
-        {
-            printf("\n\r 接收模式\n\r");
-            for(int i=0; i<34; i++)
-            {
-                NRF24L01_RX_Mode();//将射频模块配置为接收模式
-                status_rx  = NRF24L01_RxPacket(tmp_buf);//一次传输32个字节。接收的数据保存在tmp_buf数组中。返回值0为接收成功
-                HAL_Delay (1000);
-            }
-        }
+        
 		//发送模式
         if(mode == 0)
         {
@@ -183,16 +155,12 @@ int main(void)
         }
     }
 
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-	
 	
     while (1)
     {
+		
 	}
-  /* USER CODE END 3 */
+	/* USER CODE END 3 */
 }
 
 /**
@@ -240,39 +208,36 @@ void SystemClock_Config(void)
   }
 }
 
+char digit_to_char(int digit) {
+    return digit + '0';
+}
+
+
+void convert() {
+	
+	int offset = 2;
+    
+	for (int i = 0; i < 4; i++) {
+
+        //uint8_t high_byte = (adc_aver[i] >> 8) & 0xFF;
+        uint16_t byte = adc_aver[i];
+
+        Send[offset + 4 * i ] = digit_to_char(byte / 1000);
+        Send[offset + 4 * i + 1] = digit_to_char((byte / 100) % 10);
+
+        Send[offset + 4 * i + 2] = digit_to_char((byte / 10) % 10);
+        Send[offset + 4 * i + 3] = digit_to_char(byte % 10);
+		
+    }
+}
+
 /* USER CODE BEGIN 4 */
 //DMA传输完成中断回调函数   没有开启dma中断  耗时
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-	//对adc转换得到的值取平均 由于乘法运算时间太长，这里只把对应的10个值累加。
-	
-//	for(int i=0,l=0,k=0;i<16;i++)
-//	{
-//				adc_aver[i]=ADC_Value[k+l]+ADC_Value[k+4+l]+ADC_Value[k+8+l]+ADC_Value[k+12+l]+ADC_Value[k+16+l]
-//		+ADC_Value[k+20+l]+ADC_Value[k+24+l]+ADC_Value[k+28+l]+ADC_Value[k+32+l]+ADC_Value[k+36+l];
-//				k++;
-//				if(k==4)
-//				{
-//						l+=40;
-//						k=0;
-//				}		
-//	}	
-//		int checkResult = NRF24L01_Check();
-//	
-//		if(checkResult == 1)
-//		{
-//			NRF24L01_Init();
-//			NRF24L01_TX_Mode();
-//			
-//			if(NRF24L01_Check() == 1)
-//			{
-//				HAL_NVIC_SystemReset(); 
-//			}
-//		}
-		//HAL_Delay(10);
-     
-		for(int i = 0; i < 8; i ++)
-			adc_aver[i] = 0;
+
+	for(int i = 0; i < 8; i ++)
+		adc_aver[i] = 0;
 
 	// 仍然是10次求和，但没有加入参考电压（即 sumref7 sumref15）和 7000
 	// by 高璇
@@ -284,7 +249,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 			for(int j = 0; j < times; j ++)
 			{
 				adc_aver[i] += (ADC_Value[i + j*6]/times);
-				//adc_aver[i+4] += (ADC_Value[i + 60 + j*6]/times);
 			}
 			
 			hight_part [i] = adc_aver [i] / 255; 
@@ -292,66 +256,15 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 			send_val[i * 2] = hight_part[i];
 			send_val[i * 2 + 1] = lower_part[i];
 			
-//			t1 = (float)adc_aver[i] * 255.0 / 4096.0;
-//			send_val[i] = (uint8_t)t1;
-//			
-//			t2 = (float)adc_aver[i+4] * 255.0 / 4096.0;
-//			send_val[i+4] = (uint8_t)t2;
-		}
+			adc_aver[i] = ADC_Value[i];
 			
-		//这里每个求和值都+7000，是为了避免出现负值。
-//			adc_aver[0]=ADC_Value[0]+ADC_Value[6]+ADC_Value[12]+ADC_Value[18]+ADC_Value[24]+ADC_Value[30]+ADC_Value[36]
-//					+ADC_Value[42]+ADC_Value[48]+ADC_Value[54]-sumref7+7000;//Fz
-//			adc_aver[1]=ADC_Value[1]+ADC_Value[7]+ADC_Value[13]+ADC_Value[19]+ADC_Value[25]+ADC_Value[31]+ADC_Value[37]
-//					+ADC_Value[43]+ADC_Value[49]+ADC_Value[55]-sumref15+7000;//Fx
-//			adc_aver[2]=ADC_Value[2]+ADC_Value[8]+ADC_Value[14]+ADC_Value[20]+ADC_Value[26]+ADC_Value[32]+ADC_Value[38]
-//					+ADC_Value[44]+ADC_Value[50]+ADC_Value[56]-sumref15+7000;//Fy
-//			adc_aver[3]=ADC_Value[3]+ADC_Value[9]+ADC_Value[15]+ADC_Value[21]+ADC_Value[27]+ADC_Value[33]+ADC_Value[39]
-//					+ADC_Value[45]+ADC_Value[51]+ADC_Value[57]-sumref7+7000;//T
-//					
-//			sumref7=ADC_Value[4]+ADC_Value[10]+ADC_Value[16]+ADC_Value[22]+ADC_Value[28]+ADC_Value[34]+ADC_Value[40]
-//					+ADC_Value[46]+ADC_Value[52]+ADC_Value[58];//参考电压0.7的十次求和
-//			sumref15=ADC_Value[5]+ADC_Value[11]+ADC_Value[17]+ADC_Value[23]+ADC_Value[29]+ADC_Value[35]+ADC_Value[41]
-//					+ADC_Value[47]+ADC_Value[53]+ADC_Value[59];//参考电压1.5的十次求和
-//					
-//			
-//			adc_aver[4]=ADC_Value[60]+ADC_Value[66]+ADC_Value[72]+ADC_Value[78]+ADC_Value[84]+ADC_Value[90]+ADC_Value[96]
-//					+ADC_Value[102]+ADC_Value[108]+ADC_Value[114]-sumref7+7000;//Fz
-//			adc_aver[5]=ADC_Value[61]+ADC_Value[67]+ADC_Value[73]+ADC_Value[79]+ADC_Value[85]+ADC_Value[91]+ADC_Value[97]
-//					+ADC_Value[103]+ADC_Value[109]+ADC_Value[115]-sumref15+7000;//Fx
-//			adc_aver[6]=ADC_Value[62]+ADC_Value[68]+ADC_Value[74]+ADC_Value[80]+ADC_Value[86]+ADC_Value[92]+ADC_Value[98]
-//					+ADC_Value[104]+ADC_Value[110]+ADC_Value[116]-sumref15+7000;//Fy
-//			adc_aver[7]=ADC_Value[63]+ADC_Value[69]+ADC_Value[75]+ADC_Value[81]+ADC_Value[87]+ADC_Value[93]+ADC_Value[99]
-//					+ADC_Value[105]+ADC_Value[111]+ADC_Value[117]-sumref7+7000;//T
-//					
-//			sumref7=ADC_Value[64]+ADC_Value[70]+ADC_Value[76]+ADC_Value[82]+ADC_Value[88]+ADC_Value[94]+ADC_Value[100]
-//					+ADC_Value[106]+ADC_Value[112]+ADC_Value[118];//参考电压0.7的十次求和
-//			sumref15=ADC_Value[65]+ADC_Value[71]+ADC_Value[77]+ADC_Value[83]+ADC_Value[89]+ADC_Value[95]+ADC_Value[101]
-//					+ADC_Value[107]+ADC_Value[113]+ADC_Value[119];//参考电压1.5的十次求和
-
-//			adc_aver[8]=ADC_Value[118];//ref0.7参考电压的单次测量值
-//			adc_aver[9]=ADC_Value[119];//ref1.5参考电压的单次测量值
-
-	
-	
-
-	//adc_aver数组：1-4：z/x/y/T的十次测量值的和；5-8：z/x/y/T的十次测量值的和；9：ref0.7的单次测量值；10：ref1.5的单次测量值
-	status_tx=NRF24L01_TxPacket((uint8_t *)send_val);//nrf射频发送数据
-	if(status_tx != 0x20)
-		HAL_NVIC_SystemReset(); 
-		
-	
-
-//	status_tx=NRF24L01_TxPacket((uint8_t *)tmp_buf);//nrf射频发送数据
-	//输出发送状态  调试状态下才使用
-//	printf("z-%d,x-%d,y-%d,T-%d  ",adc_aver[0],adc_aver[1],adc_aver[2],adc_aver[3]);
-
-//  if(status_tx!=0x20)
-//  {
-//     count_send_fail++;
-//  }  
-//	else {count1++;}     
-
+		}
+		convert();
+			
+	status_tx=NRF24L01_TxPacket((uint8_t *)Send);
+	if(status_tx != 0x20){
+		//status_tx=NRF24L01_TxPacket((uint8_t *)SendFail);
+	}
 }
 /**
   * @brief  Period elapsed callback in non-blocking mode
@@ -362,23 +275,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 
-    /* Prevent unused argument(s) compilation warning */
-	//每隔一段时间输出发送成功次数 调试状态下才使用
-//    if(htim->Instance==TIM3)
-//    {   
-//        count2++;
-//	}
-//	
-//	if(count2==10000)//3s输出一次丢包个数
-//    {
-//		printf("shibai %d.%d",count_send_fail,count1); //count1是发送成功的次数
-//				count_send_fail=0;
-//        count2=0;
-//	}
-
-    /* NOTE : This function should not be modified, when the callback is needed,
-              the HAL_TIM_PeriodElapsedCallback could be implemented in the user file
-     */
 }
 /* USER CODE END 4 */
 
