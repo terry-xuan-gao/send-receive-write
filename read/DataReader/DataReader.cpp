@@ -14,6 +14,20 @@ COMMTIMEOUTS timeouts;
 MYSQL mysql;
 MYSQL* conn;
 
+vector<vector<double>> A = {
+	{-0.069699439, 0.035721667, 0.029486,    -0.007688913},
+	{-0.005092619, 0.108994307, -0.006549272, 0.001561142},
+	{-0.002726086, 0.00097024,  0.064649797, -0.001321194},
+	{0.250519428,  0.059926057, 0.110398148,  1.150738892}
+};
+
+vector<double> B = {
+	48.36806825,
+	-288.1076172,
+	-209.0685374,
+	-3527.950973
+};
+
 int init_mysql() {
 
 	mysql_init(&mysql);
@@ -38,7 +52,7 @@ int init_mysql() {
 
 int init_serial() {
 	// 打开串口
-	hSerial = CreateFile(TEXT("COM9"), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hSerial = CreateFile(TEXT("COM7"), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hSerial == INVALID_HANDLE_VALUE) {
 		std::cout << "无法打开串口" << std::endl;
 		return 1;
@@ -76,17 +90,40 @@ int init_serial() {
 	return 0;
 }
 
-std::vector<string> splited_string(const std::string& message) {
+void strs_to_numbers(const std::vector<string> strs)
+{
+	vector<int> fin(4, 0.0);
+	for (int i = 0; i < 4; i++) {
+		fin[i] = atoi(strs[i].c_str());
+	}
 
-	std::cout << message << endl;
+	vector<double> fout(4, 0.0);
+	for (int i = 0; i < 4; i++) {
+		fout[i] = fin[0]*A[i][0] + fin[1]*A[i][1] +
+			fin[2]*A[i][2] + fin[3]*A[i][3] + B[i];
+	}
+
+	cout << "Fz = " << fout[0] << " kN" << endl;
+	cout << "Fxy = " << sqrt(fout[1]*fout[1] + fout[2]*fout[2]) << " kN" << endl;
+	cout << "T = " << fout[3] << " N*m" << endl;
+}
+
+std::vector<string> splited_string(const std::string& message) {
+	std::cout << "message = " << message << endl;
 
 	std::vector<string> strs;
 
-	for (int i = 2; i <= 14; i+= 4) {
+	if (message.size() != 18) 
+		return strs;
+	
+	//std::cout << message.size() << endl;
 
+	for (int i = 2; strs.size() < 4; i+= 4) {
 		string str = message.substr(i, 4);
 		strs.push_back(str);
 	}
+
+
 
 	return strs;
 }
@@ -114,9 +151,11 @@ int main()
 				{
 					// 将数据插入到MySQL数据库
 					std::vector<string> strs = splited_string(message);
-					dataGet += 1;
 					
-					if (strs.size() == 4 && dataGet == 1)
+					if (strs.size() == 4)
+						dataGet += 1;
+					
+					if (dataGet == 1)
 					{			
 						cout << "sendToMysql = " << strs[0] <<"," << strs[1] <<"," 
 							<< strs[2] <<"," << strs[3] << endl;
