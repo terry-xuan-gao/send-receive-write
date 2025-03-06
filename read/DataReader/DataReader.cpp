@@ -6,6 +6,11 @@
 #include <mysql.h>
 #include <vector>
 
+#include <iostream>
+#include <queue>
+#include <process.h>
+#include <chrono>
+
 using namespace std;
 
 HANDLE hSerial;
@@ -13,6 +18,12 @@ DCB dcbSerialParams;
 COMMTIMEOUTS timeouts;
 MYSQL mysql;
 MYSQL* conn;
+
+
+std::queue<std::vector<string>> sharedQueue;
+HANDLE hDataAvailable;
+CRITICAL_SECTION cs;
+bool isRunning = true;
 
 vector<vector<double>> A = {
 	{-0.069699439, 0.035721667, 0.029486,    -0.007688913},
@@ -108,30 +119,80 @@ void strs_to_numbers(const std::vector<string> strs)
 	cout << "T = " << fout[3] << " N*m" << endl;
 }
 
-std::vector<string> splited_string(const std::string& message) {
+std::string process_message(const std::string& message) {
+
+	size_t pos = message.rfind("f");
+	if (pos != std::string::npos) {
+		return " " + message.substr(pos);
+	}
+	return "";
+}
+
+bool producer(std::string& message) {
 	std::cout << "message = " << message << endl;
+	if (message.size() < 18) return false;
 
 	std::vector<string> strs;
 
-	if (message.size() != 18) 
-		return strs;
-	
-	//std::cout << message.size() << endl;
+	if (message.size() != 18) {
+		message = process_message(message);
+		std::cout << "修正 message = " << message << endl;
 
+		if (message.size() != 18)
+			return false;
+	}
+		
 	for (int i = 2; strs.size() < 4; i+= 4) {
 		string str = message.substr(i, 4);
 		strs.push_back(str);
 	}
 
+	EnterCriticalSection(&cs);
+	sharedQueue.push(strs);
+	LeaveCriticalSection(&cs);
+	SetEvent(hDataAvailable);
 
-
-	return strs;
+	return true;
 }
+
+unsigned __stdcall consumer(void*) {
+	while (true) {
+
+		WaitForSingleObject(hDataAvailable, INFINITE);
+		EnterCriticalSection(&cs);
+
+		if (!sharedQueue.empty()) {
+			// 从队列中取出元素
+			auto strs = sharedQueue.front();
+			sharedQueue.pop();
+			LeaveCriticalSection(&cs);
+
+			std::string query = "INSERT INTO received_data_0 (Fz, Fx, Fy, T) VALUES ("
+				+ strs[0] + "," + strs[1] + "," + strs[2] + "," + strs[3] + ")";
+			std::cout << query << std::endl;
+			if (mysql_query(conn, query.c_str())) {
+				std::cout << "插入数据失败： " << mysql_error(conn) << std::endl;
+			}
+			Sleep(5);
+		}
+		else {
+			LeaveCriticalSection(&cs);
+		}
+	}
+	return 0;
+}
+
 
 int main()
 {
 	init_serial();
 	init_mysql();
+
+	// 初始化临界区
+	InitializeCriticalSection(&cs);
+	// 创建事件
+	hDataAvailable = CreateEvent(NULL, FALSE, FALSE, NULL);
+	HANDLE hConsumerThread = (HANDLE)_beginthreadex(NULL, 0, consumer, NULL, 0, NULL);
 	
 	char data;
 	DWORD bytesRead;
@@ -149,30 +210,10 @@ int main()
 					message += str;
 				else
 				{
-					// 将数据插入到MySQL数据库
-					std::vector<string> strs = splited_string(message);
-					
-					if (strs.size() == 4)
-						dataGet += 1;
-					
-					if (dataGet == 1)
-					{			
-						cout << "sendToMysql = " << strs[0] <<"," << strs[1] <<"," 
-							<< strs[2] <<"," << strs[3] << endl;
-
-						std::string query = "INSERT INTO received_data_0 (Fz, Fx, Fy, T) VALUES ("
-							+ strs[0] + "," + strs[1] + "," + strs[2] + "," + strs[3] + ")";
-					  
-						if (mysql_query(conn, query.c_str())) {
-							std::cout << "插入数据失败： " << mysql_error(conn) << std::endl;
-						}
-						dataGet = 0;
-					}
-					
+					bool success = producer(message);
+					if(!success) std::cout << "数据[" << message << "]插入失败" << endl;
 					message = "";
 				}
-
-				
 			}
 		}
 	}
