@@ -13,6 +13,8 @@
 
 using namespace std;
 
+string version = "version 2.0 多线程版";
+
 HANDLE hSerial;
 DCB dcbSerialParams;
 COMMTIMEOUTS timeouts;
@@ -57,7 +59,7 @@ int init_mysql() {
 		CloseHandle(hSerial);
 		return 1;
 	}
-
+	cout << "MySQL连接成功" << endl;
 	return 0;
 }
 
@@ -98,6 +100,8 @@ int init_serial() {
 		return 1;
 	}
 
+	cout << "串口打开成功" << endl;
+
 	return 0;
 }
 
@@ -136,7 +140,7 @@ bool producer(std::string& message) {
 
 	if (message.size() != 18) {
 		message = process_message(message);
-		std::cout << "修正 message = " << message << endl;
+		std::cout << "	修正 message = " << message << endl;
 
 		if (message.size() != 18)
 			return false;
@@ -169,7 +173,7 @@ unsigned __stdcall consumer(void*) {
 
 			std::string query = "INSERT INTO received_data_0 (Fz, Fx, Fy, T) VALUES ("
 				+ strs[0] + "," + strs[1] + "," + strs[2] + "," + strs[3] + ")";
-			std::cout << query << std::endl;
+			std::cout << "	" << query << std::endl;
 			if (mysql_query(conn, query.c_str())) {
 				std::cout << "插入数据失败： " << mysql_error(conn) << std::endl;
 			}
@@ -185,8 +189,10 @@ unsigned __stdcall consumer(void*) {
 
 int main()
 {
-	init_serial();
-	init_mysql();
+	cout << version << endl;
+	if (init_serial() == 1 || init_mysql() == 1) {
+		return 0;
+	}
 
 	// 初始化临界区
 	InitializeCriticalSection(&cs);
@@ -211,7 +217,7 @@ int main()
 				else
 				{
 					bool success = producer(message);
-					if(!success) std::cout << "数据[" << message << "]插入失败" << endl;
+					if(!success) std::cout << "	数据[" << message << "]插入失败" << endl;
 					message = "";
 				}
 			}
