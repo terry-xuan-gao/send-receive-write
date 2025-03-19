@@ -172,8 +172,8 @@ int main(void)
 						Rec_Length=0;
 					}
 					k++;
-					for (int i = 0; i < 8; i++) {
-						printf("%u,", UserTxBufferFS[i]); // 将输出值改为UserTxBufferFS数组里的前八个元素
+					for (int i = 1; i < 19; i++) {
+						printf("%c", UserTxBufferFS[i]); // 将输出值改为UserTxBufferFS数组里的前八个元素
 
 					}
 					printf("E");
