@@ -13,7 +13,7 @@
 
 using namespace std;
 
-string version = "version 2.0 多线程版";
+string version = "version 2.10 多线程版";
 
 HANDLE hSerial;
 DCB dcbSerialParams;
@@ -65,7 +65,7 @@ int init_mysql() {
 
 int init_serial() {
 	// 打开串口
-	hSerial = CreateFile(TEXT("COM7"), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hSerial = CreateFile(TEXT("COM3"), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hSerial == INVALID_HANDLE_VALUE) {
 		std::cout << "无法打开串口" << std::endl;
 		return 1;
@@ -132,7 +132,16 @@ std::string process_message(const std::string& message) {
 	return "";
 }
 
+int message_count = 0;
+int target_count = 20;
 bool producer(std::string& message) {
+
+	if (message_count != target_count) {
+		message_count += 1;
+		cout << message_count << endl;
+		return true;
+	}
+
 	std::cout << "message = " << message << endl;
 	if (message.size() < 18) return false;
 
@@ -146,7 +155,10 @@ bool producer(std::string& message) {
 			return false;
 	}
 		
-	for (int i = 2; strs.size() < 4; i+= 4) {
+	
+	
+
+	for (int i = 2; strs.size() < 4; i += 4) {
 		string str = message.substr(i, 4);
 		strs.push_back(str);
 	}
@@ -155,6 +167,11 @@ bool producer(std::string& message) {
 	sharedQueue.push(strs);
 	LeaveCriticalSection(&cs);
 	SetEvent(hDataAvailable);
+
+	message_count = 0;
+	
+
+	
 
 	return true;
 }
@@ -177,7 +194,7 @@ unsigned __stdcall consumer(void*) {
 			if (mysql_query(conn, query.c_str())) {
 				std::cout << "插入数据失败： " << mysql_error(conn) << std::endl;
 			}
-			Sleep(5);
+			Sleep(10);
 		}
 		else {
 			LeaveCriticalSection(&cs);
