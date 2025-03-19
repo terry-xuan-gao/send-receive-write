@@ -145,7 +145,7 @@ int main(void)
     if(NRF24L01_Check()==0)
     {
         printf("\n\r nrf测试成功 nrf连接\n\r");
-			  SPI1_SetSpeed(SPI_BAUDRATEPRESCALER_16);
+		SPI1_SetSpeed(SPI_BAUDRATEPRESCALER_16);
         
 		//发送模式
         if(mode == 0)
@@ -236,35 +236,19 @@ void convert() {
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 
-	for(int i = 0; i < 8; i ++)
+	for(int i = 0; i < 8; i ++) 
+	{
 		adc_aver[i] = 0;
+	}
 
-	// 仍然是10次求和，但没有加入参考电压（即 sumref7 sumref15）和 7000
-	// by 高璇
-		int times = 9;
-//		float t1 = 0.0;
-//		float t2 = 0.0;
-		for(int i = 0; i < 4; i ++)
-		{
-			for(int j = 0; j < times; j ++)
-			{
-				adc_aver[i] += (ADC_Value[i + j*6]/times);
-			}
-			
-			hight_part [i] = adc_aver [i] / 255; 
-			lower_part [i] = adc_aver [i] % 255;
-			send_val[i * 2] = hight_part[i];
-			send_val[i * 2 + 1] = lower_part[i];
-			
-			adc_aver[i] = ADC_Value[i];
-			
-		}
-		convert();
+	for(int i = 0; i < 4; i ++)
+	{			
+		adc_aver[i] = ADC_Value[i];			
+	}
+	convert();
 			
 	status_tx=NRF24L01_TxPacket((uint8_t *)Send);
-	if(status_tx != 0x20){
-		//status_tx=NRF24L01_TxPacket((uint8_t *)SendFail);
-	}
+	
 }
 /**
   * @brief  Period elapsed callback in non-blocking mode
