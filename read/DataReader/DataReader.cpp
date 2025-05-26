@@ -133,7 +133,7 @@ std::string process_message(const std::string& message) {
 }
 
 int message_count = 0;
-int target_count = 20;
+int target_count = 10;
 bool producer(std::string& message) {
 
 	if (message_count != target_count) {
